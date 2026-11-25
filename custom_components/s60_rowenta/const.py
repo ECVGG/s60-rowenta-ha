@@ -12,6 +12,7 @@ AUTHOR: Final = "ECVGG"
 
 # Public endpoints (discoverable from app traffic)
 APP_VERSION: Final = "10.0.0"
+SEB_API: Final = "https://sebplatform.api.groupe-seb.com"
 SEB_API_BASE: Final = "https://sebplatform.api.groupe-seb.com"
 IOT_API_BASE: Final = "https://iot.api.groupe-seb.com"
 SEB_API_KEY: Final = "19UfOfJmK6365857UYNzjn427R6q1XFA"
