@@ -92,6 +92,11 @@ Go to **Settings** -> **Devices & Services** -> **Rowenta X-Plorer Series 60** -
 - **Schedules**: AWS Device Shadow (desired/reported state)
 - **Updates**: MQTT push (status, history, shadow) + periodic polls
 
+## Diagnostics
+
+**Settings** -> **Devices & Services** -> the integration -> menu (...) -> **Download diagnostics**.
+Tokens, identifiers and names are redacted, but review the file before sharing it: it includes your cleaning map, history and schedule times.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0
+
+- Downloadable diagnostics with personal data redacted.
+- Tests and GitHub Actions (pytest, hassfest, HACS).
+
 ## 0.2.1
 
 - Login: follow more redirect types and self-submitting pages (`login_no_tokens`).
