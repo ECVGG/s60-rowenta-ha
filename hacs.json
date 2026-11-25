@@ -1,0 +1,22 @@
+{
+  "name": "Rowenta X-Plorer Series 60 (Cloud)",
+  "description": "Home Assistant integration for Rowenta X-Plorer Series 60 (Groupe SEB Cloud / AWS IoT MQTT)",
+  "author": "ECVGG",
+  "homepage": "https://github.com/ECVGG/s60-rowenta-ha",
+  "repository": "ECVGG/s60-rowenta-ha",
+  "version": "0.1.1",
+  "category": "integration",
+  "main_branch": "main",
+  "file_name": "custom_components/s60_rowenta",
+  "zip_release": false,
+  "domains": ["s60_rowenta"],
+  "requirements": [
+    "asyncio-mqtt>=0.12.0",
+    "Pillow>=10.0.0"
+  ],
+  "homeassistant": "2024.1.0",
+  "iot_class": "cloud_push",
+  "codeowners": ["@ECVGG"],
+  "documentation": "https://github.com/ECVGG/s60-rowenta-ha",
+  "issue_tracker": "https://github.com/ECVGG/s60-rowenta-ha/issues"
+}
