@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Background circle with Rowenta blue -->
+  <circle cx="128" cy="128" r="120" fill="#0033A0"/>
+
+  <!-- Robot vacuum silhouette in white -->
+  <g transform="translate(64, 64)">
+    <!-- Main body -->
+    <rect x="0" y="20" width="128" height="88" rx="16" ry="16" fill="#FFFFFF"/>
+    <rect x="8" y="28" width="112" height="72" rx="10" ry="10" fill="#F0F0F0"/>
+
+    <!-- Top sensors/LEDs -->
+    <circle cx="32" cy="36" r="6" fill="#0033A0"/>
+    <circle cx="96" cy="36" r="6" fill="#0033A0"/>
+
+    <!-- Display area -->
+    <rect x="44" y="48" width="40" height="12" rx="3" fill="#E0E0E0"/>
+    <rect x="48" y="50" width="8" height="8" rx="2" fill="#0033A0"/>
+    <rect x="60" y="50" width="8" height="8" rx="2" fill="#0033A0"/>
+    <rect x="72" y="50" width="8" height="8" rx="2" fill="#0033A0"/>
+
+    <!-- Wheels -->
+    <circle cx="16" cy="92" r="14" fill="#2D2D2D"/>
+    <circle cx="112" cy="92" r="14" fill="#2D2D2D"/>
+    <circle cx="16" cy="92" r="8" fill="#4A4A4A"/>
+    <circle cx="112" cy="92" r="8" fill="#4A4A4A"/>
+
+    <!-- Side brushes (orange accent) -->
+    <g transform="translate(0, 106)">
+      <path d="M0,0 L20,0 L20,20 L0,20 Z" fill="#FF6B35" opacity="0.9"/>
+    </g>
+    <g transform="translate(108, 106)">
+      <path d="M0,0 L20,0 L20,20 L0,20 Z" fill="#FF6B35" opacity="0.9"/>
+    </g>
+
+    <!-- Main brush -->
+    <rect x="24" y="116" width="80" height="8" rx="4" fill="#1A1A1A"/>
+    <rect x="28" y="116" width="72" height="4" rx="2" fill="#333333"/>
+
+    <!-- Rowenta logo text -->
+    <text x="64" y="148" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0033A0" text-anchor="middle">ROWENTA</text>
+  </g>
+</svg>

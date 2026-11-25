@@ -1,0 +1,180 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Rowenta X-Plorer Series 60",
+        "description": "Inicia sesión con la misma cuenta y país que en la app Rowenta Robots. Los robots se almacenan por país. La contraseña solo se usa para autenticar y no se guarda.",
+        "data": {
+          "email": "Email",
+          "password": "Contraseña",
+          "country": "País"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-autenticar",
+        "description": "La sesión ha expirado. Introduce tu contraseña de nuevo.",
+        "data": {
+          "email": "Email",
+          "password": "Contraseña"
+        }
+      }
+    },
+    "error": {
+      "bad_country": "País no soportado por Rowenta Robots.",
+      "bad_auth": "Email o contraseña incorrectos.",
+      "no_connection": "No se puede conectar con la nube de Rowenta.",
+      "no_device": "No se encontró ningún robot para esta cuenta y país. Verifica el país en la app Rowenta Robots.",
+      "already_set": "Esta cuenta ya está configurada."
+    },
+    "abort": {
+      "already_set": "Esta cuenta ya está configurada.",
+      "reauth_ok": "Re-autenticación exitosa.",
+      "wrong_account": "Has iniciado sesión con otra cuenta."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "cloud_up": { "name": "Nube conectada" }
+    },
+    "select": {
+      "start_mode": {
+        "name": "Modo al iniciar",
+        "state": {
+          "smart_cleaning": "Inteligente",
+          "auto_cleaning": "Aleatorio",
+          "wall_follow": "Bordes",
+          "small_room_clean": "Habitación pequeña",
+          "mop": "Fregado",
+          "spiral": "Espiral"
+        }
+      },
+      "map_pick": {
+        "name": "Ver en mapa",
+        "state": { "latest": "Última" }
+      }
+    },
+    "sensor": {
+      "status": {
+        "name": "Estado",
+        "state": {
+          "cleaning": "Limpiando",
+          "standby": "Espera",
+          "charging": "Cargando",
+          "docking": "Volviendo a base",
+          "stop": "Detenido",
+          "upgrading": "Actualizando",
+          "error": "Error"
+        }
+      },
+      "error": {
+        "name": "Error",
+        "state": {
+          "normal": "Sin error",
+          "left_side_brush_error": "Cepillo lateral izq.",
+          "right_side_brush_error": "Cepillo lateral der.",
+          "main_brush_error": "Cepillo principal",
+          "left_wheel_error": "Rueda izq.",
+          "right_wheel_error": "Rueda der.",
+          "fan_motor_error": "Motor ventilador",
+          "cliff_sensor_error": "Sensor acantilado",
+          "off_ground_error": "Levantado",
+          "bumper_error": "Parachoques",
+          "charging_error": "Error carga",
+          "wall_sensor_error": "Sensor pared",
+          "dustbin_error": "Depósito",
+          "front_wheel_error": "Rueda frontal",
+          "no_battery_error": "Sin batería",
+          "low_battery_error": "Batería baja"
+        }
+      },
+      "mode": {
+        "name": "Modo actual",
+        "state": {
+          "pause": "Pausado",
+          "auto_cleaning": "Aleatorio",
+          "wall_follow": "Bordes",
+          "smart_cleaning": "Inteligente",
+          "spiral": "Espiral",
+          "left_spiral": "Espiral izq.",
+          "right_spiral": "Espiral der.",
+          "right_bow": "Zigzag der.",
+          "left_bow": "Zigzag izq.",
+          "partial_bow": "Zigzag parcial",
+          "charge_go": "Recargar y continuar",
+          "mop": "Fregado",
+          "small_room_clean": "Habitación pequeña",
+          "back_to_dock": "Volviendo a base",
+          "sleep": "Reposo",
+          "schedule_clean": "Programado"
+        }
+      },
+      "area": { "name": "Área" },
+      "duration": { "name": "Duración" },
+      "started": { "name": "Inicio" },
+      "side_brush_wear": { "name": "Cepillo lateral" },
+      "main_brush_wear": { "name": "Cepillo principal" },
+      "filter_wear": { "name": "Filtro" },
+      "total_area": { "name": "Área total" },
+      "total_time": { "name": "Tiempo total" },
+      "total_jobs": { "name": "Total limpiezas" },
+      "sched_count": { "name": "Programaciones" },
+      "last_job": { "name": "Última limpieza" },
+      "mqtt": {
+        "name": "MQTT",
+        "state": { "up": "Conectado", "down": "Desconectado" }
+      }
+    },
+    "switch": {
+      "schedule": { "name": "Programación {name} ({start})" }
+    },
+    "image": {
+      "map": { "name": "Mapa" }
+    }
+  },
+  "exceptions": {
+    "no_connection": { "message": "No conectado a la nube de Rowenta." },
+    "bad_power": { "message": "Potencia desconocida: {fan_speed}." },
+    "raw_dict": { "message": "El comando raw requiere un objeto JSON." },
+    "unknown_cmd": { "message": "Comando desconocido: {command}." },
+    "sched_not_found": { "message": "Programación no encontrada: {schedule}." },
+    "sched_unavailable": { "message": "Programaciones no cargadas aún. Intenta en un momento." }
+  },
+  "services": {
+    "get_schedules": { "name": "Ver programaciones", "description": "Devuelve las programaciones del robot." },
+    "set_schedule": {
+      "name": "Crear/editar programación",
+      "description": "Añade o modifica una programación. Solo cambia los campos indicados.",
+      "fields": {
+        "schedule": { "name": "Programación", "description": "ID o nombre. Vacío = nueva." },
+        "name": { "name": "Nombre", "description": "Nombre de la programación." },
+        "start": { "name": "Inicio", "description": "Hora de inicio." },
+        "days": { "name": "Días", "description": "Días de la semana." },
+        "mode": { "name": "Modo", "description": "Modo de limpieza." },
+        "power": { "name": "Potencia", "description": "Potencia de succión." },
+        "enabled": { "name": "Activa", "description": "Si la programación está activa." }
+      }
+    },
+    "delete_schedule": {
+      "name": "Eliminar programación",
+      "description": "Elimina una programación.",
+      "fields": { "schedule": { "name": "Programación", "description": "ID o nombre." } }
+    }
+  },
+  "selector": {
+    "day": { "options": { "mon": "Lunes", "tue": "Martes", "wed": "Miércoles", "thu": "Jueves", "fri": "Viernes", "sat": "Sábado", "sun": "Domingo" } },
+    "sched_mode": { "options": { "smart_cleaning": "Inteligente", "auto_cleaning": "Aleatorio", "wall_follow": "Bordes", "small_room": "Habitación pequeña" } },
+    "sched_power": { "options": { "silent": "Silencioso", "normal": "Normal", "strong": "Máximo" } }
+  },
+  "options": {
+    "step": {
+      "init": { "title": "Elegir robot", "data": { "device": "Robot" } },
+      "menu": { "title": "Programaciones", "menu_options": { "add": "Añadir", "edit": "Editar", "delete": "Eliminar" } },
+      "add": { "title": "Nueva programación", "data": { "name": "Nombre", "start": "Inicio", "days": "Días", "mode": "Modo", "power": "Potencia", "enabled": "Activa" } },
+      "edit": { "title": "Editar programación", "data": { "schedule": "Programación" } },
+      "edit_form": { "title": "Editar", "description": "{schedule}", "data": { "name": "Nombre", "start": "Inicio", "days": "Días", "mode": "Modo", "power": "Potencia", "enabled": "Activa" } },
+      "delete": { "title": "Eliminar", "description": "Se borrarán del robot.", "data": { "schedule": "Programaciones" } }
+    },
+    "error": { "no_days": "Selecciona al menos un día.", "no_connection": "Sin conexión a la nube.", "sched_unavailable": "Programaciones no cargadas aún." },
+    "abort": { "not_ready": "Integración no lista.", "sched_gone": "La programación ya no existe." }
+  }
+}

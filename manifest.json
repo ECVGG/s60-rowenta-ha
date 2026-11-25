@@ -1,0 +1,16 @@
+{
+  "domain": "s60_rowenta",
+  "name": "Rowenta X-Plorer Series 60 (Cloud)",
+  "codeowners": ["@ECVGG"],
+  "config_flow": true,
+  "documentation": "https://github.com/ECVGG/s60-rowenta-ha",
+  "integration_type": "hub",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/ECVGG/s60-rowenta-ha/issues",
+  "loggers": ["custom_components.s60_rowenta", "asyncio_mqtt", "aiomqtt"],
+  "requirements": [
+    "asyncio-mqtt>=0.12.0",
+    "Pillow>=10.0.0"
+  ],
+  "version": "0.1.0"
+}
