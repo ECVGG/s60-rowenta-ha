@@ -33,7 +33,7 @@ set_schedule:
       selector:
         select:
           translation_key: sched_mode
-          options: [smart_cleaning, auto_cleaning, wall_follow, small_room]
+          options: [smart_cleaning, auto_cleaning, wall_follow, small_room_clean]
     power:
       selector:
         select:

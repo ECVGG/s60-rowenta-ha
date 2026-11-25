@@ -17,6 +17,7 @@ from .const import (
     COGNITO_ENDPOINT,
     COGNITO_LOGIN_KEY,
     COGNITO_POOL_ID,
+    IOT_API_BASE,
     LOGIN_URL,
     RCU_BASE,
     RCU_CLIENT_ID,
@@ -66,7 +67,7 @@ def user_id_from_tokens(tokens: dict[str, Any]) -> str | None:
 
 
 def find_redirect(text: str) -> str | None:
-    clean = text.replace("\\/", "/").replace("\\u0026", "&").replace("&", "&")
+    clean = text.replace("\\/", "/").replace("\\u0026", "&").replace("&amp;", "&")
     match = _REDIRECT_RE.search(clean)
     return match.group(0) if match else None
 

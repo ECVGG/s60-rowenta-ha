@@ -32,7 +32,7 @@ async def async_setup_entry(
 
 class S60StartMode(S60Entity, SelectEntity, RestoreEntity):
     _attr_translation_key = "start_mode"
-    _attr_options = [m.value.lower() for m in START_MODES]
+    _attr_options = START_MODES
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, coordinator: VacuumCoordinator) -> None:
@@ -71,7 +71,7 @@ class S60MapPick(S60Entity, SelectEntity):
             while lbl in res:
                 n += 1
                 lbl = f"{orig} ({n})"
-            res[lbl] = str(item["mapId"])
+            res[lbl] = str(item["map_id"])
         return res
 
     @property

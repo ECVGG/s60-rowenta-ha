@@ -17,7 +17,8 @@ from homeassistant.helpers.selector import (
     TimeSelector,
 )
 
-from .schedules import DAY_TO_CODE, SCHEDULE_MODES, SCHEDULE_POWERS, apply_changes, find_idx, to_dict
+from .const import DAY_TO_CODE, SCHEDULE_MODES, SCHEDULE_POWERS
+from .schedules import apply_changes, find_idx, to_dict
 
 if TYPE_CHECKING:
     from .coordinator import VacuumCoordinator
@@ -73,9 +74,9 @@ class S60OptionsFlow(OptionsFlow):
         assert self._dev_id
         return self._coords()[self._dev_id]
 
-    def _save(self, scheds: list[dict[str, Any]]) -> dict[str, str]:
+    async def _save(self, scheds: list[dict[str, Any]]) -> dict[str, str]:
         try:
-            self._coord().write_schedules(scheds)
+            await self._coord().write_schedules(scheds)
         except HomeAssistantError as err:
             return {"base": err.translation_key or "no_connection"}
         return {}
@@ -121,7 +122,7 @@ class S60OptionsFlow(OptionsFlow):
             else:
                 scheds = list(self._coord().data.schedules)
                 scheds.append(apply_changes(None, **user_input))
-                if not (errs := self._save(scheds)):
+                if not (errs := await self._save(scheds)):
                     return self._done()
         return self.async_show_form(
             step_id="add",
@@ -160,7 +161,7 @@ class S60OptionsFlow(OptionsFlow):
                 errs["days"] = "no_days"
             else:
                 scheds[idx] = apply_changes(scheds[idx], **user_input)
-                if not (errs := self._save(scheds)):
+                if not (errs := await self._save(scheds)):
                     return self._done()
 
         cur = to_dict(scheds[idx])
@@ -184,6 +185,6 @@ class S60OptionsFlow(OptionsFlow):
         if user_input is not None:
             drop = set(user_input["schedule"])
             scheds = [s for s in self._coord().data.schedules if s.get("id") not in drop]
-            if not (errs := self._save(scheds)):
+            if not (errs := await self._save(scheds)):
                 return self._done()
         return self.async_show_form(step_id="delete", data_schema=self._pick(multi=True), errors=errs)

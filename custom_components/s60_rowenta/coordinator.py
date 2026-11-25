@@ -5,11 +5,9 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import replace
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -18,10 +16,8 @@ from .auth import SebCloud
 from .const import DEFAULT_START_METHOD, DOMAIN, MAP_REFRESH_INTERVAL
 from .exceptions import NotConnected, SchedulesUnavailable
 from .history import parse_history, job_to_dict
-from .map_renderer import MapStore
 from .mqtt import MqttBroker
 from .models import DeviceInfo, VacuumState
-from .schedules import to_dict
 
 if TYPE_CHECKING:
     from . import S60ConfigEntry
@@ -41,7 +37,6 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
         hass: HomeAssistant,
         entry: S60ConfigEntry,
         device: DeviceInfo,
-        cache_dir: Path,
     ) -> None:
         super().__init__(
             hass,
@@ -55,7 +50,6 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
         self.cloud: SebCloud | None = None
         self.start_mode = DEFAULT_START_METHOD
         self.data = VacuumState()
-        self._map_store = MapStore(cache_dir)
         self._map_fetching = False
         self._map_force = False
         self._map_fetched = 0.0
@@ -115,7 +109,7 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
             self._request_map()
         if kind == "status":
             if old.active and not data.active and self.mqtt and self.mqtt.can_pub:
-                self.hass.async_create_background_task(
+                self.config_entry.async_create_background_task(
                     self.hass, self.mqtt._get_history(self.device), f"{DOMAIN}_hist_{self.device.device_id}"
                 )
             self._maybe_refresh_map(old, data)
@@ -151,10 +145,8 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
         if self._map_fetching:
             self._map_force |= force
             return
-        if not force and mid == self.data.map_id:
-            cached = self._map_store.get(self.device.device_id, mid)
-            if cached and self.data.map_updated:
-                return
+        if not force and mid == self.data.map_id and self.data.map_updated:
+            return
         self._map_fetching = True
         self.config_entry.async_create_background_task(
             self.hass, self._fetch_map(mid), f"{DOMAIN}_map_{self.device.device_id}"
@@ -219,6 +211,6 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
 
     def send_cmd(self, cmd: dict[str, Any]) -> None:
         mqtt = self._need_mqtt()
-        self.hass.async_create_background_task(
+        self.config_entry.async_create_background_task(
             self.hass, mqtt.send_cmd(self.device, cmd), f"{DOMAIN}_cmd_{self.device.device_id}"
         )

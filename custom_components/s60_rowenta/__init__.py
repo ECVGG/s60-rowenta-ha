@@ -6,7 +6,7 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
+from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.vacuum import DOMAIN as VACUUM_DOMAIN
@@ -21,10 +21,21 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
 
 from .auth import SebCloud
-from .const import CONF_PERIMETER, CONF_REFRESH_TOKEN, DOMAIN, HISTORY_POLL_INTERVAL, STATUS_POLL_INTERVAL, STATUS_POLL_INTERVAL_ACTIVE
+from .const import (
+    CONF_PERIMETER,
+    CONF_REFRESH_TOKEN,
+    DAY_TO_CODE,
+    DOMAIN,
+    HISTORY_POLL_INTERVAL,
+    SCHEDULE_MODES,
+    SCHEDULE_POWERS,
+    STATUS_POLL_ACTIVE,
+    STATUS_POLL_IDLE,
+)
 from .coordinator import VacuumCoordinator
+from .exceptions import AuthFailed
+from .models import DeviceInfo
 from .mqtt import MqttBroker
-from .schedules import DAY_TO_CODE, SCHEDULE_MODES, SCHEDULE_POWERS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +53,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 _SCHED_FIELDS = {
     vol.Optional("name"): cv.string,
     vol.Optional("start"): cv.time,
-    vol.Optional("days"): vol.All(cv.ensure_list, [vol.In(DAY_TO_CODE.values())], vol.Length(min=1)),
+    vol.Optional("days"): vol.All(cv.ensure_list, [vol.In(list(DAY_TO_CODE.values()))], vol.Length(min=1)),
     vol.Optional("mode"): vol.In(SCHEDULE_MODES),
     vol.Optional("power"): vol.In(SCHEDULE_POWERS),
     vol.Optional("enabled"): cv.boolean,
@@ -77,12 +88,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: S60ConfigEntry) -> bool:
 
     try:
         devices = await cloud.async_get_devices()
+    except AuthFailed as err:
+        raise ConfigEntryAuthFailed(str(err)) from err
     except Exception as err:
-        if "auth" in str(err).lower() or "invalid" in str(err).lower():
-            raise ConfigEntryAuthFailed(str(err)) from err
         raise ConfigEntryNotReady(str(err)) from err
 
-    from .models import DeviceInfo
     device_infos = [
         DeviceInfo(device_id=d["device_id"], thing_type=d["thing_type"], name=d["name"], model_code=d.get("model_code"))
         for d in devices
@@ -96,7 +106,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: S60ConfigEntry) -> bool:
     cloud.set_refresh_callback(_save_token)
     _save_token(cloud.refresh_token)
 
-    coords = {d.device_id: VacuumCoordinator(hass, entry, d, hass.config.path("s60_maps")) for d in device_infos}
+    coords = {d.device_id: VacuumCoordinator(hass, entry, d) for d in device_infos}
 
     @callback
     def _on_msg(dev: DeviceInfo, kind: str, payload: Any) -> None:
@@ -120,7 +130,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: S60ConfigEntry) -> bool:
     entry.runtime_data = S60Data(cloud, mqtt, coords)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    await mqtt.start()
+    # The MQTT loop runs for the lifetime of the entry: never await it here
+    entry.async_create_background_task(hass, mqtt.run(), f"{DOMAIN}_mqtt")
     entry.async_on_unload(mqtt.stop)
 
     last_poll = 0.0
@@ -131,14 +142,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: S60ConfigEntry) -> bool:
         if not mqtt.can_pub:
             return
         cleaning = any(c.data.active for c in coords.values())
-        if not cleaning and time.monotonic() - last_poll < STATUS_POLL_INTERVAL.total_seconds():
+        if not cleaning and time.monotonic() - last_poll < STATUS_POLL_IDLE.total_seconds():
             return
         last_poll = time.monotonic()
         try:
             for c in coords.values():
                 if not c.data.shadow_ready:
-                    hass.async_create_background_task(hass, mqtt._get_shadow(c.device), f"{DOMAIN}_shadow_{c.device.device_id}")
-                hass.async_create_background_task(hass, mqtt._get_status(c.device, True), f"{DOMAIN}_status_{c.device.device_id}")
+                    entry.async_create_background_task(hass, mqtt._get_shadow(c.device), f"{DOMAIN}_shadow_{c.device.device_id}")
+                entry.async_create_background_task(hass, mqtt._get_status(c.device, True), f"{DOMAIN}_status_{c.device.device_id}")
         except Exception as err:
             _LOGGER.debug("Status poll error: %s", err)
 
@@ -148,11 +159,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: S60ConfigEntry) -> bool:
             return
         try:
             for c in coords.values():
-                hass.async_create_background_task(hass, mqtt._get_history(c.device), f"{DOMAIN}_hist_{c.device.device_id}")
+                entry.async_create_background_task(hass, mqtt._get_history(c.device), f"{DOMAIN}_hist_{c.device.device_id}")
         except Exception as err:
             _LOGGER.debug("History poll error: %s", err)
 
-    entry.async_on_unload(async_track_time_interval(hass, _poll_status, STATUS_POLL_INTERVAL_ACTIVE))
+    entry.async_on_unload(async_track_time_interval(hass, _poll_status, STATUS_POLL_ACTIVE))
     entry.async_on_unload(async_track_time_interval(hass, _poll_hist, HISTORY_POLL_INTERVAL))
 
     return True

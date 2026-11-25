@@ -6,6 +6,8 @@ from datetime import timedelta
 from enum import StrEnum
 from typing import Final
 
+import aiohttp
+
 DOMAIN: Final = "s60_rowenta"
 INTEGRATION_NAME: Final = "Rowenta X-Plorer Series 60"
 AUTHOR: Final = "ECVGG"
@@ -74,13 +76,13 @@ _BROWSER_UA: Final = (
 _MAX_LOGIN_STEPS: Final = 12
 
 # Transport errors that should surface as connection errors
-_TRANSPORT_ERRORS = (
-    "aiohttp.ClientError",
-    "TimeoutError",
-    "ValueError",
-    "KeyError",
-    "TypeError",
-    "AttributeError",
+_TRANSPORT_ERRORS: Final = (
+    aiohttp.ClientError,
+    TimeoutError,
+    ValueError,
+    KeyError,
+    TypeError,
+    AttributeError,
 )
 
 # OAuth errors that mean the refresh token is no longer valid
@@ -145,25 +147,26 @@ class SuctionPower(StrEnum):
     MAX = "STRONG"
 
 
-# Methods available for manual start (user-facing)
+CLEAN_MODES: Final = list(CleanMode)
+SUCTION_POWER: Final = list(SuctionPower)
+
+# Option lists are lowercase (translation keys); values are uppercased when sent
 START_MODES: Final = [
-    CleanMode.SMART,
-    CleanMode.AUTO,
-    CleanMode.EDGES,
-    CleanMode.SMALL_ROOM,
-    CleanMode.MOP,
-    CleanMode.SPOT,
+    m.value.lower()
+    for m in (
+        CleanMode.SMART,
+        CleanMode.AUTO,
+        CleanMode.EDGES,
+        CleanMode.SMALL_ROOM,
+        CleanMode.MOP,
+        CleanMode.SPOT,
+    )
 ]
+DEFAULT_START_METHOD: Final = CleanMode.SMART.value.lower()
 
 # Methods allowed in schedules (subset)
-SCHEDULE_MODES: Final = [
-    CleanMode.SMART,
-    CleanMode.AUTO,
-    CleanMode.EDGES,
-    CleanMode.SMALL_ROOM,
-]
-
-SCHEDULE_POWERS: Final = [SuctionPower.QUIET, SuctionPower.NORMAL, SuctionPower.MAX]
+SCHEDULE_MODES: Final = START_MODES[:4]
+SCHEDULE_POWERS: Final = [p.value.lower() for p in SuctionPower]
 
 # Day mapping (1=Monday ... 7=Sunday per SEB)
 DAY_TO_CODE: Final = {1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat", 7: "sun"}

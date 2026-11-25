@@ -14,14 +14,14 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import S60ConfigEntry
-from .const import CLEAN_MODES, DOMAIN, SCHEDULE_MODES, SCHEDULE_POWERS, START_MODES, SUCTION_POWER
+from .const import CLEAN_MODES, DOMAIN, SUCTION_POWER, CleanMode
 from .coordinator import VacuumCoordinator
 from .entity import S60Entity
 from .schedules import apply_changes, find_idx, to_dict
 
 PARALLEL_UPDATES = 0
 
-RETURNING = {"RETURN_HOME", "RECHARGE_RESUME"}
+RETURNING = {CleanMode.RETURN_HOME.value, CleanMode.RECHARGE_RESUME.value}
 
 
 def activity(state: dict[str, Any]) -> VacuumActivity | None:
@@ -98,10 +98,10 @@ class S60Vacuum(S60Entity, StateVacuumEntity):
         self.coordinator.send_cmd({"method": "PAUSE"})
 
     async def async_return_to_base(self, **kwargs: Any) -> None:
-        self.coordinator.send_cmd({"method": "RETURN_HOME"})
+        self.coordinator.send_cmd({"method": CleanMode.RETURN_HOME.value})
 
     async def async_clean_spot(self, **kwargs: Any) -> None:
-        self.coordinator.send_cmd({"method": "SPOT", "power": self._cur_power()})
+        self.coordinator.send_cmd({"method": CleanMode.SPOT.value, "power": self._cur_power()})
 
     async def async_locate(self, **kwargs: Any) -> None:
         self.coordinator.send_cmd({"beep": "ON"})

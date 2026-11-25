@@ -14,9 +14,10 @@ from datetime import UTC, datetime
 from typing import Any, Callable
 from urllib.parse import quote
 
-from asyncio_mqtt import Client as AsyncMQTT, MqttError
+from aiomqtt import Client as AsyncMQTT, MqttError
+from homeassistant.core import callback
+from homeassistant.util.ssl import get_default_context
 
-from .auth import AWSCreds
 from .const import (
     AWS_REGION,
     CREDENTIALS_FALLBACK_LIFETIME,
@@ -26,11 +27,10 @@ from .const import (
     MQTT_SERVICE,
     RECONNECT_BASE_DELAY,
     RECONNECT_MAX_DELAY,
-    STABLE_CONNECTION_THRESHOLD,
     AUTH_RETRY_DELAY,
 )
 from .exceptions import AuthFailed, CloudUnreachable
-from .models import DeviceInfo
+from .models import AWSCreds, DeviceInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,56 +97,33 @@ class MqttBroker:
 
         self._client: AsyncMQTT | None = None
         self._client_id = ""
-        self._connected = False
-        self._ready = False
         self._stopping = False
         self._retry = 0
-        self._renewal_task: asyncio.Task | None = None
-        self._lock = asyncio.Lock()
-
-    @property
-    def is_up(self) -> bool:
-        return self._connected
 
     @property
     def can_pub(self) -> bool:
-        return self._client is not None and self._ready
+        return self._client is not None
 
-    async def start(self) -> None:
-        self._stopping = False
-        await self._run_loop()
-
-    async def stop(self) -> None:
+    @callback
+    def stop(self) -> None:
+        """Flag shutdown; Home Assistant cancels the background task on unload."""
         self._stopping = True
-        if self._renewal_task:
-            self._renewal_task.cancel()
-            try:
-                await self._renewal_task
-            except asyncio.CancelledError:
-                pass
-        await self._disconnect()
 
-    async def _run_loop(self) -> None:
+    async def run(self) -> None:
         while not self._stopping:
             try:
+                # Returns normally when credentials are due for renewal
                 await self._connect_and_run()
             except AuthFailed:
-                if self._stopping:
-                    break
                 _LOGGER.warning("MQTT auth failed, triggering re-auth")
+                self._on_conn(False)
                 self._on_auth_fail()
                 await asyncio.sleep(AUTH_RETRY_DELAY)
-            except CloudUnreachable as err:
-                if self._stopping:
-                    break
+            except (CloudUnreachable, MqttError) as err:
                 _LOGGER.debug("MQTT connection error: %s", err)
                 await self._backoff("connection_error")
-            except asyncio.CancelledError:
-                break
-            except Exception as err:
-                _LOGGER.exception("Unexpected MQTT error: %s", err)
-                if self._stopping:
-                    break
+            except Exception:
+                _LOGGER.exception("Unexpected MQTT error")
                 await self._backoff("unexpected")
 
     async def _connect_and_run(self) -> None:
@@ -154,85 +131,55 @@ class MqttBroker:
         if self._stopping:
             return
 
-        client_id = f"s60-{uuid.uuid4().hex[:16]}"
-        ws_path = sigv4_sign(creds)
+        self._client_id = f"s60-{uuid.uuid4().hex[:16]}"
+        lifetime = (
+            creds.expiration - time.time()
+            if creds.expiration
+            else CREDENTIALS_FALLBACK_LIFETIME.total_seconds()
+        )
+        renew_in = max(60.0, lifetime - CREDENTIALS_REFRESH_MARGIN.total_seconds())
 
-        async with self._lock:
-            await self._disconnect()
-            self._client_id = client_id
-
-            self._client = AsyncMQTT(
+        try:
+            async with AsyncMQTT(
                 hostname=MQTT_HOST,
                 port=MQTT_PORT,
-                client_id=client_id,
+                identifier=self._client_id,
                 transport="websockets",
-                websocket_path=ws_path,
-                tls_context=True,
+                websocket_path=sigv4_sign(creds),
+                tls_context=get_default_context(),
                 keepalive=60,
                 clean_session=True,
-            )
+            ) as client:
+                for dev in self._devices.values():
+                    for topic in (
+                        f"{dev.mqtt_base}/status",
+                        f"{dev.mqtt_base}/history",
+                        f"{dev.shadow_base}/get/accepted",
+                        f"{dev.shadow_base}/update/documents",
+                    ):
+                        await client.subscribe(topic, qos=0)
 
-        lifetime = creds.expiration - time.time() if creds.expiration else CREDENTIALS_FALLBACK_LIFETIME.total_seconds()
-        renew_in = max(60.0, lifetime - CREDENTIALS_REFRESH_MARGIN.total_seconds())
-        self._renewal_task = asyncio.create_task(self._renew_later(renew_in))
+                self._client = client
+                self._retry = 0
+                self._on_conn(True)
 
-        async with self._client:
-            await self._client.connect()
-            _LOGGER.debug("MQTT WebSocket connected")
-
-            for dev in self._devices.values():
-                topics = [
-                    f"{dev.mqtt_base}/status",
-                    f"{dev.mqtt_base}/history",
-                    f"{dev.shadow_base}/get/accepted",
-                    f"{dev.shadow_base}/update/documents",
-                ]
-                for t in topics:
-                    await self._client.subscribe(t, qos=0)
-
-            self._connected = True
-            self._ready = True
-            self._retry = 0
-            self._on_conn(True)
-
-            await asyncio.sleep(2)
-
-            if self.can_pub:
                 for dev in self._devices.values():
                     await self._get_shadow(dev)
                     await self._get_status(dev, listening=True)
                     await self._get_history(dev)
 
-            async for msg in self._client.messages:
-                if self._stopping:
-                    break
-                await self._route_msg(msg.topic, msg.payload)
-
-    async def _renew_later(self, delay: float) -> None:
-        try:
-            await asyncio.sleep(delay)
-            if not self._stopping:
-                _LOGGER.debug("MQTT creds expiring, renewing")
-                await self._disconnect()
-        except asyncio.CancelledError:
-            pass
-
-    async def _disconnect(self) -> None:
-        self._connected = False
-        self._ready = False
-        if self._renewal_task:
-            self._renewal_task.cancel()
-            try:
-                await self._renewal_task
-            except asyncio.CancelledError:
-                pass
-        self._client = None
+                try:
+                    async with asyncio.timeout(renew_in):
+                        async for msg in client.messages:
+                            self._route_msg(str(msg.topic), msg.payload)
+                except TimeoutError:
+                    _LOGGER.debug("MQTT credentials expiring, reconnecting")
+        finally:
+            self._client = None
 
     async def _backoff(self, reason: str) -> None:
         if self._stopping:
             return
-        self._connected = False
-        self._ready = False
         self._on_conn(False)
 
         delay = min(RECONNECT_BASE_DELAY * (2 ** self._retry), RECONNECT_MAX_DELAY)
@@ -240,10 +187,10 @@ class MqttBroker:
         _LOGGER.debug("MQTT reconnect in %.0fs (%s, try %d)", delay, reason, self._retry)
         await asyncio.sleep(delay)
 
-    async def _route_msg(self, topic: str, payload: bytes) -> None:
+    def _route_msg(self, topic: str, payload: bytes) -> None:
         try:
             data = json.loads(payload)
-        except json.JSONDecodeError:
+        except ValueError:
             return
         if not isinstance(data, dict):
             return
@@ -259,7 +206,7 @@ class MqttBroker:
                 return
 
     async def _publish(self, topic: str, payload: dict[str, Any]) -> None:
-        if not self.can_pub or self._client is None:
+        if self._client is None:
             raise CloudUnreachable("mqtt_not_ready")
         try:
             await self._client.publish(topic, json.dumps(payload), qos=0)

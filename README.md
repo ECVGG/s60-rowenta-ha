@@ -17,7 +17,6 @@ Custom integration for **Rowenta X-Plorer Series 60** using the **Groupe SEB Clo
 - [x] MQTT push updates (real-time, no polling for state)
 - [x] Multi-robot support
 - [x] Spanish & English translations
-- [x] Persistent map cache (survives restarts)
 
 ## Installation
 
@@ -31,11 +30,9 @@ Custom integration for **Rowenta X-Plorer Series 60** using the **Groupe SEB Clo
 
 ### Manual
 
-```bash
-cd /config/custom_components
-git clone https://github.com/ECVGG/s60-rowenta-ha s60_rowenta
-# Restart Home Assistant
-```
+Copy the `custom_components/s60_rowenta` folder of this repository into `/config/custom_components/`, then restart Home Assistant.
+
+Requires Home Assistant 2025.10 or newer.
 
 ## Configuration
 

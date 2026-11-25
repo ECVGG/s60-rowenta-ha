@@ -41,15 +41,15 @@ def job_to_dict(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def job_label(item: dict[str, Any]) -> str:
-    start = ms_to_dt(item.get("startTimestamp"))
-    when = dt_util.as_local(start).strftime("%Y-%m-%d %H:%M") if start else str(item.get("mapId", "?"))
+def job_label(job: dict[str, Any]) -> str:
+    """Label for a job already converted by job_to_dict."""
+    start = dt_util.parse_datetime(job["start"]) if job.get("start") else None
+    when = dt_util.as_local(start).strftime("%Y-%m-%d %H:%M") if start else str(job.get("map_id", "?"))
     parts = [when]
-    if (area := item.get("cleaningArea")) is not None:
-        parts.append(f"{area} m²")
-    if (dur := item.get("cleaningDuration")) is not None:
+    if (area := job.get("area")) is not None:
+        parts.append(f"{area} m\u00b2")
+    if (dur := job.get("duration")) is not None:
         parts.append(f"{dur} min")
-    err = (item.get("status") or {}).get("errorCode")
-    if err and err.upper() != "NORMAL":
+    if job.get("error") not in (None, "normal"):
         parts.append("!")
-    return " · ".join(parts)
+    return " \u00b7 ".join(parts)

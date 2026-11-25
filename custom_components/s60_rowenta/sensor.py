@@ -15,12 +15,13 @@ from homeassistant.components.sensor import (
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfArea, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from . import S60ConfigEntry
-from .const import ACCESSORY_MAP, CLEAN_MODES, DOMAIN
+from .const import ACCESSORY_MAP, CLEAN_MODES, RobotError, RobotState
 from .coordinator import VacuumCoordinator
 from .entity import S60Entity
-from .history import job_to_dict, lower, ms_to_dt
+from .history import lower, ms_to_dt
 from .schedules import to_dict
 
 PARALLEL_UPDATES = 0
@@ -58,14 +59,14 @@ SENSORS: tuple[S60SensorDesc, ...] = (
         key="status",
         translation_key="status",
         device_class=SensorDeviceClass.ENUM,
-        options=[s.value.lower() for s in __import__('.const', fromlist=['RobotState']).RobotState],
+        options=[s.value.lower() for s in RobotState],
         value_fn=lambda c: lower(c.data.status.get("status")),
     ),
     S60SensorDesc(
         key="error",
         translation_key="error",
         device_class=SensorDeviceClass.ENUM,
-        options=[e.value.lower() for e in __import__('.const', fromlist=['RobotError']).RobotError],
+        options=[e.value.lower() for e in RobotError],
         value_fn=lambda c: lower(c.data.status.get("errorCode")),
     ),
     S60SensorDesc(
@@ -138,7 +139,11 @@ SENSORS: tuple[S60SensorDesc, ...] = (
         key="last_job",
         translation_key="last_job",
         device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda c: ms_to_dt(c.data.cleanings[0].get("endTimestamp")) if c.data.cleanings else None,
+        value_fn=lambda c: (
+            dt_util.parse_datetime(c.data.cleanings[0]["end"])
+            if c.data.cleanings and c.data.cleanings[0]["end"]
+            else None
+        ),
         attrs_fn=lambda c: _last_attrs(c),
     ),
     S60SensorDesc(
@@ -160,7 +165,7 @@ SENSORS: tuple[S60SensorDesc, ...] = (
 
 
 def _last_attrs(coord: VacuumCoordinator) -> dict[str, Any] | None:
-    items = [job_to_dict(i) for i in coord.data.cleanings]
+    items = coord.data.cleanings
     if not items:
         return None
     last = items[0]

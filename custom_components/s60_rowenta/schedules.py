@@ -7,7 +7,7 @@ import uuid
 from datetime import time
 from typing import Any
 
-from .const import DAY_TO_CODE, CODE_TO_DAY, SCHEDULE_MODES, SCHEDULE_POWERS
+from .const import CODE_TO_DAY, DAY_TO_CODE
 
 
 def extract_feats(raw: dict[str, Any]) -> dict[str, str]:

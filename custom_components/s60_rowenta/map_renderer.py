@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw
@@ -101,48 +100,3 @@ def render_map(points: list[dict[str, Any]], robot_xy: tuple[int, int] | None = 
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
-
-
-class MapStore:
-    """Persistent map cache (memory + disk)."""
-
-    def __init__(self, base_dir: Path) -> None:
-        self._dir = base_dir
-        self._dir.mkdir(parents=True, exist_ok=True)
-        self._mem: dict[str, bytes] = {}
-
-    def _key(self, dev_id: str, map_id: str) -> str:
-        return f"{dev_id}_{map_id}"
-
-    def _path(self, dev_id: str, map_id: str) -> Path:
-        return self._dir / f"{self._key(dev_id, map_id)}.png"
-
-    def get(self, dev_id: str, map_id: str) -> bytes | None:
-        key = self._key(dev_id, map_id)
-        if key in self._mem:
-            return self._mem[key]
-        path = self._path(dev_id, map_id)
-        if path.exists():
-            try:
-                data = path.read_bytes()
-                self._mem[key] = data
-                return data
-            except OSError:
-                pass
-        return None
-
-    def set(self, dev_id: str, map_id: str, data: bytes) -> None:
-        key = self._key(dev_id, map_id)
-        self._mem[key] = data
-        try:
-            self._path(dev_id, map_id).write_bytes(data)
-        except OSError:
-            pass
-
-    def drop(self, dev_id: str, map_id: str) -> None:
-        key = self._key(dev_id, map_id)
-        self._mem.pop(key, None)
-        try:
-            self._path(dev_id, map_id).unlink(missing_ok=True)
-        except OSError:
-            pass

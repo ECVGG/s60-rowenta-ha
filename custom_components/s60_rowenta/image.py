@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from homeassistant.components.image import ImageEntity
 from homeassistant.core import HomeAssistant
@@ -31,7 +30,7 @@ class S60Map(S60Entity, ImageEntity):
 
     def __init__(self, coordinator: VacuumCoordinator) -> None:
         S60Entity.__init__(self, coordinator, "map")
-        ImageEntity.__init__(self, hass)
+        ImageEntity.__init__(self, coordinator.hass)
         self._cache_ts: datetime | None = None
         self._cache_img: bytes | None = None
 
