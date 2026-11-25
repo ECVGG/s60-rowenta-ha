@@ -6,27 +6,27 @@ Custom integration for **Rowenta X-Plorer Series 60** using the **Groupe SEB Clo
 
 ## Features
 
-- ✅ Full vacuum control: start, pause, stop, return to base, spot clean, locate
-- ✅ Suction power: Silent / Normal / Strong
-- ✅ Cleaning modes: Smart, Random, Edges, Small Room, Mop, Spiral
-- ✅ **Live map** rendered from gyro data (256×256 grid)
-- ✅ Cleaning history with area, duration, mode, power, battery
-- ✅ Accessory wear sensors: side brush, main brush, filter
-- ✅ Battery, status, error code, MQTT connectivity sensors
-- ✅ **Schedule management** via AWS Device Shadow (create/edit/delete/enable/disable)
-- ✅ MQTT push updates (real-time, no polling for state)
-- ✅ Multi-robot support
-- ✅ Spanish & English translations
-- ✅ Persistent map cache (survives restarts)
+- [x] Full vacuum control: start, pause, stop, return to base, spot clean, locate
+- [x] Suction power: Silent / Normal / Strong
+- [x] Cleaning modes: Smart, Random, Edges, Small Room, Mop, Spiral
+- [x] **Live map** rendered from gyro data (256x256 grid)
+- [x] Cleaning history with area, duration, mode, power, battery
+- [x] Accessory wear sensors: side brush, main brush, filter
+- [x] Battery, status, error code, MQTT connectivity sensors
+- [x] **Schedule management** via AWS Device Shadow (create/edit/delete/enable/disable)
+- [x] MQTT push updates (real-time, no polling for state)
+- [x] Multi-robot support
+- [x] Spanish & English translations
+- [x] Persistent map cache (survives restarts)
 
 ## Installation
 
 ### HACS (Recommended)
 
-1. Open **HACS** → **Integrations**
-2. Click **⋮** → **Custom repositories**
+1. Open **HACS** -> **Integrations**
+2. Click **...** -> **Custom repositories**
 3. Add: `https://github.com/ECVGG/s60-rowenta-ha` (Category: **Integration**)
-4. Search **"Rowenta X-Plorer Series 60"** → **Download**
+4. Search **"Rowenta X-Plorer Series 60"** -> **Download**
 5. **Restart Home Assistant**
 
 ### Manual
@@ -39,11 +39,11 @@ git clone https://github.com/ECVGG/s60-rowenta-ha s60_rowenta
 
 ## Configuration
 
-1. **Settings** → **Devices & Services** → **Add Integration**
+1. **Settings** -> **Devices & Services** -> **Add Integration**
 2. Search **"Rowenta X-Plorer Series 60"**
 3. Enter your **Rowenta Robots app credentials** (email/password)
 4. Select your **country** (must match app setting)
-5. Submit → Your robot(s) will be discovered automatically
+5. Submit -> Your robot(s) will be discovered automatically
 
 ## Entities Created
 
@@ -81,17 +81,17 @@ git clone https://github.com/ECVGG/s60-rowenta-ha s60_rowenta
 
 ## Schedule Management
 
-Go to **Settings** → **Devices & Services** → **Rowenta X-Plorer Series 60** → **Configure** to manage schedules via UI.
+Go to **Settings** -> **Devices & Services** -> **Rowenta X-Plorer Series 60** -> **Configure** to manage schedules via UI.
 
 ## Supported Models
 
-- **Rowenta X-Plorer Series 60** (VAC001) ✅ Tested
+- **Rowenta X-Plorer Series 60** (VAC001) Tested
 - Other Groupe SEB VAC001 platform robots (untested)
 
 ## Technical Details
 
-- **Protocol**: Salesforce RCU → AWS Cognito → AWS IoT MQTT (WebSocket, SigV4)
-- **Map**: Gyro points (256×256 grid) rendered locally with Pillow
+- **Protocol**: Salesforce RCU -> AWS Cognito -> AWS IoT MQTT (WebSocket, SigV4)
+- **Map**: Gyro points (256x256 grid) rendered locally with Pillow
 - **Schedules**: AWS Device Shadow (desired/reported state)
 - **Updates**: MQTT push (status, history, shadow) + periodic polls
 
