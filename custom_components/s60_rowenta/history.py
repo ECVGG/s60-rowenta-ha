@@ -51,5 +51,5 @@ def job_label(item: dict[str, Any]) -> str:
         parts.append(f"{dur} min")
     err = (item.get("status") or {}).get("errorCode")
     if err and err.upper() != "NORMAL":
-        parts.append("⚠")
+        parts.append("!")
     return " · ".join(parts)
