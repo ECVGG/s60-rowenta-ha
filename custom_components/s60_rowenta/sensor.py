@@ -23,6 +23,7 @@ from .coordinator import VacuumCoordinator
 from .entity import S60Entity
 from .history import lower, ms_to_dt
 from .schedules import to_dict
+from .stats import days_since_last, weekly
 
 PARALLEL_UPDATES = 0
 
@@ -154,6 +155,27 @@ SENSORS: tuple[S60SensorDesc, ...] = (
         attrs_fn=lambda c: {"schedules": [to_dict(s) for s in c.data.schedules]},
     ),
     S60SensorDesc(
+        key="weekly_area",
+        translation_key="weekly_area",
+        device_class=SensorDeviceClass.AREA,
+        native_unit_of_measurement=UnitOfArea.SQUARE_METERS,
+        value_fn=lambda c: weekly(c.data.cleanings)["area"],
+        attrs_fn=lambda c: weekly(c.data.cleanings),
+    ),
+    S60SensorDesc(
+        key="days_since_clean",
+        translation_key="days_since_clean",
+        native_unit_of_measurement=UnitOfTime.DAYS,
+        value_fn=lambda c: days_since_last(c.data.cleanings),
+    ),
+    S60SensorDesc(
+        key="incidents",
+        translation_key="incidents",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda c: len(c.library.incidents(c.device.device_id)),
+        attrs_fn=lambda c: {"incidents": c.library.incidents(c.device.device_id)[-10:]},
+    ),
+    S60SensorDesc(
         key="mqtt",
         translation_key="mqtt",
         device_class=SensorDeviceClass.ENUM,
@@ -185,7 +207,7 @@ async def async_setup_entry(
 
 class S60Sensor(S60Entity, SensorEntity):
     entity_description: S60SensorDesc
-    _unrecorded_attributes = frozenset({"history", "schedules"})
+    _unrecorded_attributes = frozenset({"history", "schedules", "incidents"})
 
     def __init__(self, coordinator: VacuumCoordinator, desc: S60SensorDesc) -> None:
         super().__init__(coordinator, desc.key)

@@ -34,8 +34,11 @@ from .const import (
 )
 from .coordinator import VacuumCoordinator
 from .exceptions import AuthFailed
+from .frontend import async_register_card
+from .library import MapLibrary, library_store
 from .models import DeviceInfo
 from .mqtt import MqttBroker
+from .websocket import async_register as async_register_websocket
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,6 +72,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         service.async_register_platform_entity_service(
             hass, DOMAIN, name, entity_domain=VACUUM_DOMAIN, schema=schema, func=func, supports_response=resp
         )
+    async_register_websocket(hass)
+    await async_register_card(hass)
     return True
 
 
@@ -106,7 +111,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: S60ConfigEntry) -> bool:
     cloud.set_refresh_callback(_save_token)
     _save_token(cloud.refresh_token)
 
-    coords = {d.device_id: VacuumCoordinator(hass, entry, d) for d in device_infos}
+    library = MapLibrary(hass, entry.entry_id)
+    await library.async_load()
+    entry.async_on_unload(library.async_flush)
+    coords = {d.device_id: VacuumCoordinator(hass, entry, d, library) for d in device_infos}
 
     @callback
     def _on_msg(dev: DeviceInfo, kind: str, payload: Any) -> None:
@@ -171,3 +179,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: S60ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: S60ConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await library_store(hass, entry.entry_id).async_remove()

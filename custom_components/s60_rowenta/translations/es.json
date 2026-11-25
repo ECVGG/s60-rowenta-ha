@@ -151,6 +151,15 @@
           "up": "Conectado",
           "down": "Desconectado"
         }
+      },
+      "weekly_area": {
+        "name": "Superficie en 7 días"
+      },
+      "days_since_clean": {
+        "name": "Días desde la última limpieza"
+      },
+      "incidents": {
+        "name": "Incidencias registradas"
       }
     },
     "switch": {
