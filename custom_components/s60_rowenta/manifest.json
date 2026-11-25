@@ -13,8 +13,7 @@
     "aiomqtt"
   ],
   "requirements": [
-    "aiomqtt>=2.0.0,<3.0.0",
-    "Pillow>=10.0.0"
+    "aiomqtt>=2.0.0,<3.0.0"
   ],
   "version": "0.3.0"
 }
