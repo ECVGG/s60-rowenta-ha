@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Login: follow more redirect types and self-submitting pages (`login_no_tokens`).
+- AWS credentials: add the `GetOpenIdToken` step.
+- Failed logins now log the steps taken, without tokens or query strings.
+- Login and credential handling partly adapted from BlackPavilion/rowxplorer-hacs (MIT).
+
 ## 0.2.0
 
 ### Fixed

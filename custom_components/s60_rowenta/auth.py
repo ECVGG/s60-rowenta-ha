@@ -6,6 +6,7 @@ import json
 import logging
 import re
 import time
+from datetime import datetime
 from html import unescape
 from typing import Any
 from urllib.parse import parse_qs, urljoin, urlsplit
@@ -36,7 +37,9 @@ _LOGGER = logging.getLogger(__name__)
 TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 _REDIRECT_RE = re.compile(r"gsmoduser://tokens[#?]([^\s'\"<>]+)")
-_JS_LOCATION_RE = re.compile(r"window\.location(?:\.href\s*=\s*|\.replace\()\s*[\"']([^\"']+)[\"']")
+_JS_LOCATION_RE = re.compile(
+    r"(?:window\.location(?:\.href\s*=\s*|\.replace\(\s*)|handleRedirect\(\s*)[\"']([^\"']+)[\"']"
+)
 _FORM_RE = re.compile(r'<form id="([^"]+)"[^>]*action="([^"]+)"')
 _VIEWSTATE_RE = re.compile(
     r'<input type="hidden"\s+id="(com\.salesforce\.visualforce\.[A-Za-z]+)" name="[^"]+" value="([^"]*)"'
@@ -47,6 +50,48 @@ _LOGIN_ACTION_RE = re.compile(
     r"\{'similarityGroupingId':'([^']+)'"
 )
 _META_LOCATION_RE = re.compile(r'<meta name="Location" content="([^"]+)"')
+_META_REFRESH_RE = re.compile(
+    r"<meta[^>]+http-equiv=[\"']refresh[\"'][^>]+url=([^\"'<>]+)", re.IGNORECASE
+)
+# Auto-submitting pages (e.g. /apex/LoginFlow); handling adapted from
+# BlackPavilion/rowxplorer-hacs (MIT License)
+_AUTOSUBMIT_RE = re.compile(r"A4J\.AJAX\.Submit\(\s*['\"]([^'\"]+)['\"]\s*,\s*null\s*,")
+_PARAMETERS_RE = re.compile(r"['\"]parameters['\"]\s*:\s*\{([^{}]*)\}")
+_PAIR_RE = re.compile(r"['\"]([^'\"]+)['\"]\s*:\s*['\"]([^'\"]*)['\"]")
+_FORM_TAG_RE = re.compile(r"<form\b[^>]*>", re.IGNORECASE)
+_INPUT_RE = re.compile(r"<input\b[^>]*>", re.IGNORECASE)
+
+
+def _attr(tag: str, name: str) -> str | None:
+    match = re.search(rf"\s{name}=([\"'])(.*?)\1", tag, re.IGNORECASE)
+    return unescape(match.group(2)) if match else None
+
+
+def next_location(text: str) -> str | None:
+    """Next hop announced by a page (JavaScript or meta tags)."""
+    for pattern in (_JS_LOCATION_RE, _META_REFRESH_RE, _META_LOCATION_RE):
+        if match := pattern.search(text):
+            return unescape(match.group(1).replace("\\/", "/"))
+    return None
+
+
+def parse_autosubmit(page: str, page_url: str) -> tuple[str, dict[str, str]] | None:
+    """Return (url, data) for a form the page submits by itself on load."""
+    submit = _AUTOSUBMIT_RE.search(page)
+    if not submit:
+        return None
+    forms = _FORM_TAG_RE.findall(page)
+    form = next((f for f in forms if _attr(f, "id") == submit.group(1)), None)
+    form = form or (forms[0] if forms else None)
+    if form is None:
+        return None
+    data = {"AJAXREQUEST": "_viewRoot"}
+    for tag in _INPUT_RE.findall(page):
+        if name := _attr(tag, "name"):
+            data[name] = _attr(tag, "value") or ""
+    if params := _PARAMETERS_RE.search(page, submit.end()):
+        data.update({k: unescape(v) for k, v in _PAIR_RE.findall(params.group(1))})
+    return urljoin(page_url, _attr(form, "action") or page_url), data
 
 
 def parse_redirect(text: str) -> dict[str, str]:
@@ -135,11 +180,14 @@ async def async_login(email: str, password: str) -> dict[str, str]:
             if not url:
                 raise AuthFailed("invalid_credentials")
 
+            # Paths and status codes only: queries carry session secrets
+            trail: list[str] = []
             for _ in range(_MAX_LOGIN_STEPS):
                 if url.startswith("gsmoduser://"):
                     return parse_redirect(url)
 
                 async with session.get(url, allow_redirects=False) as resp:
+                    trail.append(f"GET {urlsplit(url).path} {resp.status}")
                     if resp.status in (301, 302, 303, 307, 308):
                         url = urljoin(url, resp.headers["Location"])
                         continue
@@ -148,21 +196,36 @@ async def async_login(email: str, password: str) -> dict[str, str]:
                 if redirect := find_redirect(text):
                     return parse_redirect(redirect)
 
-                if match := _JS_LOCATION_RE.search(text):
-                    url = urljoin(url, unescape(match.group(1)))
+                if nxt := next_location(text):
+                    url = urljoin(url, nxt)
                     continue
 
-                a4j = _A4J_RE.search(text)
-                if a4j and _FORM_RE.search(text):
-                    if nxt := await a4j_submit(session, text, url, a4j.group(1), a4j.group(2)):
-                        url = nxt
+                if auto := parse_autosubmit(text, url):
+                    post_url, data = auto
+                    async with session.post(
+                        post_url,
+                        data=data,
+                        allow_redirects=False,
+                        headers={
+                            "Referer": url,
+                            "Origin": RCU_BASE,
+                            "X-Requested-With": "XMLHttpRequest",
+                        },
+                    ) as resp:
+                        trail.append(f"POST {urlsplit(post_url).path} {resp.status}")
+                        body = await resp.text()
+                        nxt = resp.headers.get("Ajax-Location") or resp.headers.get("Location")
+                    if redirect := find_redirect(body):
+                        return parse_redirect(redirect)
+                    if nxt := nxt or next_location(body):
+                        url = urljoin(post_url, nxt)
                         continue
                 break
 
         except _TRANSPORT_ERRORS as err:
             raise CloudUnreachable(f"login_network:{err!r}") from err
 
-    raise ProtocolMismatch("login_no_tokens")
+    raise ProtocolMismatch(f"login_no_tokens: {' > '.join(trail)}")
 
 
 async def async_get_market(session: aiohttp.ClientSession, country: str) -> Market:
@@ -192,6 +255,16 @@ async def async_get_market(session: aiohttp.ClientSession, country: str) -> Mark
             return Market(name, perimeter)
 
     raise ProtocolMismatch(f"unsupported_country:{country}")
+
+
+def parse_expiration(value: Any) -> float:
+    """Epoch seconds from a number or ISO-8601 string; 0 if unknown."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
 
 
 class SebCloud:
@@ -349,11 +422,16 @@ class SebCloud:
             raise AuthFailed("id_token_missing")
         logins = {COGNITO_LOGIN_KEY: self._id_token}
         ident = await self._cognito("GetId", {"IdentityPoolId": COGNITO_POOL_ID, "Logins": logins})
-        creds = await self._cognito("GetCredentialsForIdentity", {"IdentityId": ident["IdentityId"], "Logins": logins})
+        identity = ident["IdentityId"]
+        open_id = await self._cognito("GetOpenIdToken", {"IdentityId": identity, "Logins": logins})
+        creds = await self._cognito(
+            "GetCredentialsForIdentity",
+            {"IdentityId": identity, "Logins": {"cognito-identity.amazonaws.com": open_id["Token"]}},
+        )
         c = creds["Credentials"]
         return AWSCreds(
             access_key=c["AccessKeyId"],
             secret_key=c["SecretKey"],
             session_token=c["SessionToken"],
-            expiration=float(c.get("Expiration") or 0),
+            expiration=parse_expiration(c.get("Expiration")),
         )
