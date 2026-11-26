@@ -15,6 +15,7 @@ from homeassistant.util import dt as dt_util
 from .auth import SebCloud
 from .const import DEFAULT_START_METHOD, DOMAIN, MAP_REFRESH_INTERVAL
 from .exceptions import NotConnected, SchedulesUnavailable
+from .library import MapLibrary, compact, expand, last_position
 from .history import parse_history, job_to_dict
 from .mqtt import MqttBroker
 from .models import DeviceInfo, VacuumState
@@ -37,6 +38,7 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
         hass: HomeAssistant,
         entry: S60ConfigEntry,
         device: DeviceInfo,
+        library: MapLibrary,
     ) -> None:
         super().__init__(
             hass,
@@ -46,6 +48,7 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
             update_interval=None,
         )
         self.device = device
+        self.library = library
         self.mqtt: MqttBroker | None = None
         self.cloud: SebCloud | None = None
         self.start_mode = DEFAULT_START_METHOD
@@ -55,6 +58,36 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
         self._map_fetched = 0.0
         self._pinned_map: str | None = None
         self._fw_ver: str | None = None
+        self._last_error: str | None = None
+        # A restored map is shown, but must still be downloaded again
+        self._map_restored = False
+        self._restore_map()
+
+    @callback
+    def _restore_map(self) -> None:
+        """Show the last saved map right after a restart."""
+        if latest := self.library.latest(self.device.device_id):
+            map_id, session = latest
+            self._map_restored = True
+            self.data = replace(
+                self.data,
+                map_id=map_id,
+                map_points=expand(session["points"]),
+                map_updated=dt_util.parse_datetime(session["updated"]),
+            )
+
+    @callback
+    def _track_incident(self, status: dict[str, Any]) -> None:
+        code = status.get("errorCode")
+        if not isinstance(code, str):
+            return
+        previous, self._last_error = self._last_error, code
+        # The first message only sets the baseline: restarts must not duplicate
+        if previous is None or code == previous or code == "NORMAL":
+            return
+        map_id = str(status["mapId"]) if status.get("mapId") else None
+        position = last_position(compact(self.data.map_points)) if map_id == self.data.map_id else None
+        self.library.add_incident(self.device.device_id, code, map_id, position)
 
     async def _async_update_data(self) -> VacuumState:
         if self.mqtt and self.mqtt.can_pub:
@@ -72,6 +105,7 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
         data = self.data
 
         if kind == "status":
+            self._track_incident(payload)
             data = replace(data, status=payload)
 
         elif kind == "history":
@@ -145,7 +179,7 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
         if self._map_fetching:
             self._map_force |= force
             return
-        if not force and mid == self.data.map_id and self.data.map_updated:
+        if not force and not self._map_restored and mid == self.data.map_id and self.data.map_updated:
             return
         self._map_fetching = True
         self.config_entry.async_create_background_task(
@@ -164,7 +198,12 @@ class VacuumCoordinator(DataUpdateCoordinator[VacuumState]):
             self._map_fetched = time.monotonic()
 
         if result is not None:
+            self._map_restored = False
             pts = result.get("map") if isinstance(result.get("map"), list) else []
+            self.library.save_map(self.device.device_id, map_id, pts)
+            # An empty answer must not wipe a map we already have
+            if not pts and (saved := self.library.sessions(self.device.device_id).get(map_id)):
+                pts = expand(saved["points"])
             self.async_set_updated_data(
                 replace(self.data, map_points=pts, map_id=map_id, map_updated=dt_util.utcnow())
             )

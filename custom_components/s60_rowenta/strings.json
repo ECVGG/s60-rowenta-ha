@@ -151,6 +151,15 @@
           "up": "Connected",
           "down": "Disconnected"
         }
+      },
+      "weekly_area": {
+        "name": "Area cleaned in 7 days"
+      },
+      "days_since_clean": {
+        "name": "Days since last cleaning"
+      },
+      "incidents": {
+        "name": "Recorded incidents"
       }
     },
     "switch": {

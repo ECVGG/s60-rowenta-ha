@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 (pending release)
+
+- Map card: animated live view, replay, heat map, comparison, zoom and controls.
+- Map image: path line, dock and robot heading.
+- Maps and incidents are stored and survive restarts.
+- New sensors: area in 7 days, days since last cleaning, recorded incidents.
+- Blueprints: smart cleaning and weekly report.
+- Map refresh while cleaning every 15 s (was 30 s).
+
 ## 0.3.0
 
 - Downloadable diagnostics with personal data redacted.

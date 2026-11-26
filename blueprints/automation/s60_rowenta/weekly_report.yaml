@@ -1,0 +1,57 @@
+blueprint:
+  name: Rowenta - Informe semanal
+  description: Envía un resumen de los últimos 7 días y el desgaste de las piezas.
+  domain: automation
+  input:
+    area_sensor:
+      name: Sensor "Superficie en 7 días"
+      selector:
+        entity:
+          domain: sensor
+          integration: s60_rowenta
+    wear_sensors:
+      name: Sensores de cepillos y filtro
+      default: []
+      selector:
+        entity:
+          domain: sensor
+          integration: s60_rowenta
+          multiple: true
+    weekday:
+      name: Día de envío
+      default: sun
+      selector:
+        select:
+          options: [mon, tue, wed, thu, fri, sat, sun]
+    at_time:
+      name: Hora
+      default: "20:00:00"
+      selector:
+        time:
+    notify_actions:
+      name: Cómo avisarte
+      description: "Usa {{ message }} como texto de la notificación."
+      selector:
+        action:
+
+variables:
+  area_sensor: !input area_sensor
+  wear_sensors: !input wear_sensors
+
+triggers:
+  - trigger: time
+    at: !input at_time
+
+conditions:
+  - condition: time
+    weekday: !input weekday
+
+actions:
+  - variables:
+      message: >-
+        Robot, últimos 7 días: {{ state_attr(area_sensor, 'cleanings') | default(0, true) }} limpiezas,
+        {{ state_attr(area_sensor, 'area') | default(0, true) }} m²,
+        {{ state_attr(area_sensor, 'duration') | default(0, true) }} min,
+        {{ state_attr(area_sensor, 'errors') | default(0, true) }} con errores.
+        {% for s in wear_sensors %}{{ state_attr(s, 'friendly_name') }}: {{ states(s) }} %. {% endfor %}
+  - sequence: !input notify_actions

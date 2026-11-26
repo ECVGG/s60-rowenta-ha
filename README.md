@@ -92,6 +92,28 @@ Go to **Settings** -> **Devices & Services** -> **Rowenta X-Plorer Series 60** -
 - **Schedules**: AWS Device Shadow (desired/reported state)
 - **Updates**: MQTT push (status, history, shadow) + periodic polls
 
+## Map card
+
+Added automatically with the integration. Add a **Manual** card to a dashboard:
+
+```yaml
+type: custom:s60-rowenta-map-card
+entity: vacuum.your_robot
+```
+
+Views: live (animated), replay, heat map and comparison of two cleanings. Drag to move; use the wheel, pinch or buttons to zoom.
+
+- Maps are stored from version 0.4.0 on (up to 30), as they are downloaded. Older cleanings appear once selected in "Show on map".
+- Heat map and comparison assume the robot uses the same coordinates in every cleaning (dock not moved, same starting point).
+- "Live" depends on how often the cloud publishes new points.
+
+## Blueprints
+
+Import from **Settings** -> **Automations** -> **Blueprints** -> **Import blueprint**:
+
+- `https://github.com/ECVGG/s60-rowenta-ha/blob/main/blueprints/automation/s60_rowenta/smart_cleaning.yaml`
+- `https://github.com/ECVGG/s60-rowenta-ha/blob/main/blueprints/automation/s60_rowenta/weekly_report.yaml`
+
 ## Diagnostics
 
 **Settings** -> **Devices & Services** -> the integration -> menu (...) -> **Download diagnostics**.

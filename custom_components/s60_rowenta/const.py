@@ -54,7 +54,7 @@ CONF_EMAIL: Final = "email"
 # Polling intervals
 STATUS_POLL_IDLE: Final = timedelta(seconds=60)
 STATUS_POLL_ACTIVE: Final = timedelta(seconds=15)
-MAP_REFRESH_INTERVAL: Final = timedelta(seconds=30)
+MAP_REFRESH_INTERVAL: Final = timedelta(seconds=15)
 HISTORY_POLL_INTERVAL: Final = timedelta(minutes=30)
 SHADOW_POLL_INTERVAL: Final = timedelta(minutes=10)
 
@@ -205,4 +205,5 @@ MAP_COLORS = {
     "other": (0xAA, 0xAA, 0xAA, 0xFF),
     "start": (0x28, 0xAA, 0x46, 0xFF),
     "robot": (0xFF, 0xBE, 0x00, 0xFF),
+    "recent": (0xFF, 0x7A, 0x00, 0xFF),
 }

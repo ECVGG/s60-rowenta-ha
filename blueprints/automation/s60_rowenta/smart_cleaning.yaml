@@ -1,0 +1,104 @@
+blueprint:
+  name: Rowenta - Limpieza inteligente
+  description: >-
+    Limpia cuando no queda nadie en casa y han pasado los días indicados desde la
+    última limpieza. Opcionalmente vuelve a la base si alguien llega.
+  domain: automation
+  input:
+    vacuum:
+      name: Robot
+      selector:
+        entity:
+          domain: vacuum
+          integration: s60_rowenta
+    days_sensor:
+      name: Sensor "Días desde la última limpieza"
+      selector:
+        entity:
+          domain: sensor
+          integration: s60_rowenta
+    min_days:
+      name: Días mínimos entre limpiezas
+      default: 2
+      selector:
+        number:
+          min: 0
+          max: 30
+    home_zone:
+      name: Zona de casa
+      default: zone.home
+      selector:
+        entity:
+          domain: zone
+    from_time:
+      name: No empezar antes de
+      default: "09:00:00"
+      selector:
+        time:
+    to_time:
+      name: No empezar después de
+      default: "19:00:00"
+      selector:
+        time:
+    return_on_arrival:
+      name: Volver a la base si llega alguien
+      default: true
+      selector:
+        boolean:
+
+mode: single
+
+trigger_variables:
+  home_zone: !input home_zone
+
+variables:
+  return_on_arrival: !input return_on_arrival
+  min_days: !input min_days
+  days_sensor: !input days_sensor
+
+triggers:
+  - trigger: numeric_state
+    entity_id: !input home_zone
+    below: 1
+    for: "00:05:00"
+    id: empty
+  - trigger: time
+    at: !input from_time
+    id: empty
+  - trigger: numeric_state
+    entity_id: !input home_zone
+    above: 0
+    id: arrived
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: empty
+          - condition: numeric_state
+            entity_id: !input home_zone
+            below: 1
+          - condition: time
+            after: !input from_time
+            before: !input to_time
+          - condition: state
+            entity_id: !input vacuum
+            state: [docked, idle]
+          - condition: template
+            value_template: "{{ states(days_sensor) | int(-1) >= min_days | int }}"
+        sequence:
+          - action: vacuum.start
+            target:
+              entity_id: !input vacuum
+      - conditions:
+          - condition: trigger
+            id: arrived
+          - condition: template
+            value_template: "{{ return_on_arrival }}"
+          - condition: state
+            entity_id: !input vacuum
+            state: cleaning
+        sequence:
+          - action: vacuum.return_to_base
+            target:
+              entity_id: !input vacuum
