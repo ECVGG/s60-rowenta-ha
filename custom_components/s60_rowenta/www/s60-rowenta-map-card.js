@@ -11,7 +11,7 @@ const TEXT = {
     both: "Both", few: "Rarely", many: "Often", error: "Could not load the map",
     incident: "Incident", session: "Cleaning", zoomIn: "Zoom in", zoomOut: "Zoom out" },
 };
-const COLORS = { cleaned: "#82beff", obstacle: "#e65050", wall: "#5a5a5a", cliff: "#aa3caa",
+const COLORS = { cleaned: "#82beff", obstacle: "#c9a89e", wall: "#5a5a5a", cliff: "#aa3caa",
   other: "#aaaaaa", path: "#2563c9", dock: "#28aa46", robot: "#ffbe00", a: "#e8833a",
   b: "#3c82e6", both: "#3fa45b", incident: "#d11f1f" };
 
@@ -328,12 +328,14 @@ class S60RowentaMapCard extends HTMLElement {
       const marks = data.incidents.filter((i) => i.map_id === id && i.position);
       for (const mark of marks) circle(...mark.position, Math.max(4, cell * 0.6), COLORS.incident);
       if (marks.length) this._legendItems([[COLORS.incident, `${this._t.incident}: ${[...new Set(marks.map((m) => m.code))].join(", ")}`]]);
-      const robot = path[path.length - 1];
+      // The trip back is not recorded, so a docked robot is drawn on the dock
+      const docked = this._mode === "live" && data.docked;
+      const robot = docked ? data.origin : path[path.length - 1];
       if (robot) {
         const size = Math.max(6, cell * 0.9);
         circle(robot[0], robot[1], size, COLORS.robot);
         const before = path.slice(0, -1).reverse().find(([x, y]) => x !== robot[0] || y !== robot[1]);
-        if (before) {
+        if (before && !docked) {
           const angle = Math.atan2(-(robot[1] - before[1]), robot[0] - before[0]);
           ctx.strokeStyle = "#282828";
           ctx.beginPath();
@@ -351,6 +353,7 @@ class S60RowentaMapCard extends HTMLElement {
     ctx.moveTo(x, y - s);
     for (const [dx, dy] of [[1, 0], [0.7, 0], [0.7, 0.8], [-0.7, 0.8], [-0.7, 0], [-1, 0]]) ctx.lineTo(x + dx * s, y + dy * s);
     ctx.fill();
+    if (this._mode === "live" && data.docked) circle(...data.origin, s * 0.6, COLORS.robot);
   }
 }
 
