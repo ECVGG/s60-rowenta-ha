@@ -14,35 +14,13 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import S60ConfigEntry
+from .activity import activity
 from .const import CLEAN_MODES, DOMAIN, SUCTION_POWER, CleanMode
 from .coordinator import VacuumCoordinator
 from .entity import S60Entity
 from .schedules import apply_changes, find_idx, to_dict
 
 PARALLEL_UPDATES = 0
-
-RETURNING = {CleanMode.RETURN_HOME.value, CleanMode.RECHARGE_RESUME.value}
-
-
-def activity(state: dict[str, Any]) -> VacuumActivity | None:
-    st = state.get("status")
-    method = state.get("method")
-    if st is None:
-        return None
-    if st == "ERROR":
-        return VacuumActivity.ERROR
-    if st == "CLEANING":
-        if method in RETURNING:
-            return VacuumActivity.RETURNING
-        if method == "PAUSE":
-            return VacuumActivity.PAUSED
-        return VacuumActivity.CLEANING
-    if st == "DOCKING":
-        return VacuumActivity.RETURNING
-    if st == "CHARGING":
-        return VacuumActivity.DOCKED
-    return VacuumActivity.IDLE
-
 
 async def async_setup_entry(
     hass: HomeAssistant,

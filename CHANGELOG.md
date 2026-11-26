@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.5 (pending release)
+
+- A docked robot is drawn on the dock, in the card and the map image.
+- Softer colour for obstacle/edge cells.
+
 ## 0.4.0 (pending release)
 
 - Map card: animated live view, replay, heat map, comparison, zoom and controls.

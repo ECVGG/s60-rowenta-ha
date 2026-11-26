@@ -110,7 +110,7 @@ def render_map(points: list[dict[str, Any]], robot_xy: tuple[int, int] | None = 
             width=2,
         )
         previous = next((p for p in reversed(path) if p != (rx, ry)), None)
-        if previous:
+        if previous and tuple(robot_xy) != (MAP_ORIGIN, MAP_ORIGIN):
             dx, dy = rx - previous[0], ry - previous[1]
             length = (dx * dx + dy * dy) ** 0.5
             draw.line(
@@ -118,6 +118,14 @@ def render_map(points: list[dict[str, Any]], robot_xy: tuple[int, int] | None = 
                 fill=(0x28, 0x28, 0x28, 0xFF),
                 width=max(2, cell // 4),
             )
+
+    if robot_xy and tuple(robot_xy) == (MAP_ORIGIN, MAP_ORIGIN):
+        # Keep the docked robot visible on top of the dock
+        rx, ry = center(*robot_xy)
+        draw.ellipse(
+            (rx - size * 0.6, ry - size * 0.6, rx + size * 0.6, ry + size * 0.6),
+            fill=MAP_COLORS["robot"],
+        )
 
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)

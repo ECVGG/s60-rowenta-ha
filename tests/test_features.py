@@ -87,6 +87,13 @@ async def test_card_api_incidents_and_restart(hass, hass_ws_client, hass_client)
         card = await client.get("/s60_rowenta/s60-rowenta-map-card.js")
         assert card.status == 200 and "customElements.define" in await card.text()
 
+        before = hass.states.get("image.robo_map").state
+        assert result["docked"] is False
+        await base.send(hass, "VAC001/abc/status", {**STATUS, "status": "CHARGING"})
+        await ws.send_json({"id": 3, "type": "s60_rowenta/map", "entity_id": "vacuum.robo"})
+        assert (await ws.receive_json())["result"]["docked"] is True
+        assert hass.states.get("image.robo_map").state > before
+
         # After a reload the map is there before the robot says anything
         assert await hass.config_entries.async_reload(entry.entry_id)
         await hass.async_block_till_done()

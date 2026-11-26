@@ -6,10 +6,12 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
+from homeassistant.components.vacuum import VacuumActivity
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 
+from .activity import activity
 from .const import DOMAIN, MAP_ORIGIN, MAP_POINT_TYPES
 from .library import compact
 
@@ -54,6 +56,7 @@ def ws_map(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg:
             "origin": [MAP_ORIGIN, MAP_ORIGIN],
             "types": {name: sorted(values) for name, values in MAP_POINT_TYPES.items()},
             "active": data.active,
+            "docked": activity(data.status) == VacuumActivity.DOCKED,
             "current": {"id": data.map_id, "points": compact(data.map_points)},
             "sessions": sessions,
             "incidents": library.incidents(device_id),
